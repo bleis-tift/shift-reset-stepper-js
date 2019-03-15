@@ -11,18 +11,25 @@ export function step(defs, expr) {
 }
 
 function isValue(expr) {
-  return expr.type === undefined;
+  return expr.type === undefined || expr.type === 'lambda-expr';
 }
 
 function stepImpl(defs, expr, ectx) {
-  switch (expr.type) {
-    case 'function-application':
-      switch (expr.f) {
-        case 'reset':
-          return stepReset(defs, expr.args[0].body, ectx);
-      }
+  if (!expr.type) {
+    throw new Error('not implemented yet.');
+  } else {
+    switch (expr.type) {
+      case 'function-application':
+        switch (expr.f) {
+          case 'reset':
+            return stepReset(defs, expr.args[0].body, ectx);
+          default:
+            return apply(defs, expr.f, expr.args, ectx);
+        }
+      default:
+        throw new Error('not implemented yet.');
+    }
   }
-  return ectx;
 }
 
 function stepReset(defs, expr, ectx) {
@@ -32,4 +39,26 @@ function stepReset(defs, expr, ectx) {
   } else {
     return ectx;
   }
+}
+
+function apply(defs, f, args, ectx) {
+  const argTable = new Map();
+  for (let i = 0; i < f.params.length; i++) {
+    argTable.set(f.params[i], args[i]);
+  }
+  const substituted = substitute(argTable, f.body);
+  ectx.current = _ => substituted;
+  return ectx;
+}
+
+function substitute(argTable, expr) {
+  const x = argTable.get(expr);
+  if (x) {
+    return x;
+  }
+  throw new Error('not implemented yet. expr=' + expr + ', argTable=' + mapToStr(argTable));
+}
+
+function mapToStr(m) {
+  return '{' + [...m.entries()].map(([k, v]) => k + ':' + v).join(', ') + '}';
 }
