@@ -1,4 +1,5 @@
 import * as ast from './ast-utils.js'
+import * as printer from './printer.js'
 
 class EvaluationContext {
   constructor() {
@@ -69,14 +70,17 @@ function stepReset(defs, expr, ectx) {
 }
 
 function apply(defs, f, args, ectx) {
-  const argTable = new Map();
-  for (let i = 0; i < f.params.length; i++) {
-    argTable.set(f.params[i], args[i]);
+  if (f.params.length == 1) {
+    const substituted = substitute(f.body, f.params[0], args[0]);
+    const newExpr = ectx.current(substituted);
+    ectx.current = _ => newExpr;
+    return ectx;
+  } else {
+    const [p1, ...pRest] = f.params;
+    const [a1, ...aRest] = args;
+    const newLambda = ast.lambdaExpr([p1], ast.funApp(ast.lambdaExpr(pRest, f.body), aRest));
+    return apply(defs, newLambda, [a1], ectx);
   }
-  const substituted = substitute(argTable, f.body);
-  const newExpr = ectx.current(substituted);
-  ectx.current = _ => newExpr;
-  return ectx;
 }
 
 let id = 0;
@@ -90,7 +94,7 @@ function expand(defs, f, args, ectx) {
     varTable.set(d.ident, d);
   }
   const def = varTable.get(f);
-  const syms = def.params.map(p => p === ast.astUnit() || p === ast.astWildcard() ? p : gensym());
+  const syms = def.params.map(p => p);
   for (let i = 0; i < syms.length; i++) {
     varTable.set(def.params[i], syms[i]);
   }
@@ -103,17 +107,44 @@ function isComputed(expr) {
   return typeof expr === 'number' && Number.isFinite(expr);
 }
 
-function substitute(argTable, expr) {
-  const x = argTable.get(expr);
-  if (x) {
-    return x;
-  }
+function substitute(body, ident, arg) {
+  const varTable = new Map([[ident, arg]]);
+  return substituteImpl(varTable, body);
+}
+
+function substituteImpl(varTable, expr) {
   if (isComputed(expr)) {
     return expr;
   }
-  throw new Error('not implemented yet. expr=' + expr + ', argTable=' + mapToStr(argTable));
+  const v = varTable.get(expr);
+  if (v !== undefined) {
+    return v;
+  }
+  if (!expr.type) {
+    return expr;
+  }
+  switch (expr.type) {
+    case 'function-application': {
+      const newArgs = expr.args.map(a => substituteImpl(cloneMap(varTable), a));
+      const newF = substituteImpl(cloneMap(varTable), expr.f);
+      return ast.funApp(newF, newArgs);
+    }
+    case 'lambda-expr': {
+      const newVarTable = cloneMap(varTable);
+      for (const p of expr.params) {
+        newVarTable.delete(p);
+      }
+      const newBody = substituteImpl(newVarTable, expr.body);
+      return ast.lambdaExpr(expr.params, newBody);
+    }
+  }
+  throw new Error('not implemented yet. expr=' + printer.printExpr(expr) + ', varTable=' + mapToStr(varTable));
+}
+
+function cloneMap(m) {
+  return new Map([...m.entries()]);
 }
 
 function mapToStr(m) {
-  return '{' + [...m.entries()].map(([k, v]) => k + ':' + v).join(', ') + '}';
+  return '{' + [...m.entries()].map(([k, v]) => k + ':' + JSON.stringify(v)).join(', ') + '}';
 }

@@ -28,6 +28,22 @@ describe('stepper.js', () => {
     })
   }
 
+  it('should step simple sample.', () => {
+    const init = 'let f g x = g x;; f (fun x -> x) 10;;';
+    const p = parser.parse(init);
+    let next = stepper.step(p.defs, p.expr);
+    expect(printer.printExpr(next)).to.equal('(fun g x -> g x) (fun x -> x) 10');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun x -> (fun x -> x) x) 10');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun x -> x) 10');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('10');
+  })
+
   it('should step simple reset.', () => {
     const target = ast.reset(3);
     expect(printer.printExpr(stepper.step([], target))).to.equal('3');
