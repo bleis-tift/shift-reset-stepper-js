@@ -3,6 +3,7 @@
 ## Project setup
 ```
 yarn install
+patch -p0 < vue.patch
 ```
 
 ### Compiles and hot-reloads for development
