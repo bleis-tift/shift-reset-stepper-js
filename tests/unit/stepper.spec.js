@@ -11,6 +11,11 @@ describe('stepper.js', () => {
     })
   }
 
+  it('should step op application.', () => {
+    const p = parser.parse('5 * 2;;');
+    expect(stepper.step([], p.expr)).to.equal(10);
+  })
+
   it('should step function application.', () => {
     const target = ast.funApp(ast.lambdaExpr(['x'], 'x'), [3]);
     expect(printer.printExpr(stepper.step([], target))).to.equal('3');

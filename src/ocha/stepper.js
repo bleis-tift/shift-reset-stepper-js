@@ -17,6 +17,18 @@ function isValue(expr) {
   return expr.type === undefined || expr.type === 'lambda-expr';
 }
 
+function isOpOrLambda(f) {
+  switch (f) {
+    case '+':
+    case '-':
+    case '*':
+    case '/':
+      return true;
+    default:
+      return f.type === 'lambda-expr';
+  }
+}
+
 function stepImpl(defs, expr, ectx) {
   if (!expr.type) {
     ectx.current = _ => expr;
@@ -30,7 +42,7 @@ function stepImpl(defs, expr, ectx) {
           default:
             const next = nextStepArgPos(expr.args);
             if (next === -1) {
-              if (expr.f.type === 'lambda-expr') {
+              if (isOpOrLambda(expr.f)) {
                 return apply(defs, expr.f, expr.args, ectx);
               } else {
                 return expand(defs, expr.f, expr.args, ectx);
@@ -70,16 +82,39 @@ function stepReset(defs, expr, ectx) {
 }
 
 function apply(defs, f, args, ectx) {
-  if (f.params.length == 1) {
-    const substituted = substitute(f.body, f.params[0], args[0]);
-    const newExpr = ectx.current(substituted);
-    ectx.current = _ => newExpr;
-    return ectx;
-  } else {
-    const [p1, ...pRest] = f.params;
-    const [a1, ...aRest] = args;
-    const newLambda = ast.lambdaExpr([p1], ast.funApp(ast.lambdaExpr(pRest, f.body), aRest));
-    return apply(defs, newLambda, [a1], ectx);
+  switch (f) {
+    case '+': {
+      const newExpr = ectx.current(args[0] + args[1]);
+      ectx.current = _ => newExpr;
+      return ectx;
+    }
+    case '-': {
+      const newExpr = ectx.current(args[0] - args[1]);
+      ectx.current = _ => newExpr;
+      return ectx;
+    }
+    case '*': {
+      const newExpr = ectx.current(args[0] * args[1]);
+      ectx.current = _ => newExpr;
+      return ectx;
+    }
+    case '/': {
+      const newExpr = ectx.current(args[0] / args[1]);
+      ectx.current = _ => newExpr;
+      return ectx;
+    }
+    default:
+      if (f.params.length == 1) {
+        const substituted = substitute(f.body, f.params[0], args[0]);
+        const newExpr = ectx.current(substituted);
+        ectx.current = _ => newExpr;
+        return ectx;
+      } else {
+        const [p1, ...pRest] = f.params;
+        const [a1, ...aRest] = args;
+        const newLambda = ast.lambdaExpr([p1], ast.funApp(ast.lambdaExpr(pRest, f.body), aRest));
+        return apply(defs, newLambda, [a1], ectx);
+      }
   }
 }
 
