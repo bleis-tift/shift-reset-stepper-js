@@ -27,6 +27,9 @@ function stepImpl(defs, expr, ectx) {
           default:
             return apply(defs, expr.f, expr.args, ectx);
         }
+      case 'lambda-expr':
+        ectx.current = _ => expr;
+        return ectx;
       default:
         throw new Error('not implemented yet.');
     }

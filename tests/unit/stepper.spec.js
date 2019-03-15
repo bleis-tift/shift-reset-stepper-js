@@ -4,10 +4,11 @@ import * as ast from '@/ocha/ast-utils.js'
 import * as printer from '@/ocha/printer.js'
 
 describe('stepper.js', () => {
-  it('should step value', () => {
-    const target = 10;
-    expect(printer.printExpr(stepper.step([], target))).to.equal('10');
-  })
+  for (const target of [10, ast.lambdaExpr([ast.astUnit()], 20)]) {
+    it('should step value.', () => {
+      expect(printer.printExpr(stepper.step([], target))).to.equal(printer.printExpr(target));
+    })
+  }
 
   it('should step function application.', () => {
     const target = ast.funApp(ast.lambdaExpr(['x'], 'x'), [3]);
