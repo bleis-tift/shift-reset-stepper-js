@@ -16,7 +16,8 @@ function isValue(expr) {
 
 function stepImpl(defs, expr, ectx) {
   if (!expr.type) {
-    throw new Error('not implemented yet.');
+    ectx.current = _ => expr;
+    return ectx;
   } else {
     switch (expr.type) {
       case 'function-application':
