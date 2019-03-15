@@ -6,6 +6,15 @@ export function astWildcard() {
   return 'ast-wildcard';
 }
 
+export function funDef(name, params, body) {
+  return {
+    type: 'function-definition',
+    ident: name,
+    params: params,
+    body: body,
+  };
+}
+
 export function lambdaExpr(params, body) {
   return {
     type: 'lambda-expr',

@@ -15,6 +15,12 @@ describe('stepper.js', () => {
     expect(printer.printExpr(stepper.step([], target))).to.equal('3');
   })
 
+  it('should step arg.', () => {
+    const f = ast.funDef('f', [ast.astUnit()], 10);
+    const target = ast.funApp(ast.lambdaExpr(['x'], 'x'), [ast.funApp('f', [ast.astUnit()])]);
+    expect(printer.printExpr(stepper.step([f], target))).to.equal('(fun x -> x) ((fun () -> 10) ())');
+  })
+
   it('should step simple reset.', () => {
     const target = ast.reset(3);
     expect(printer.printExpr(stepper.step([], target))).to.equal('3');
