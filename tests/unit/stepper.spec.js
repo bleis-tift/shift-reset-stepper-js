@@ -12,13 +12,14 @@ describe('stepper.js', () => {
   }
 
   for (const [target, expected] of [
-    ['5 * 2', 10],
-    ['5 + 2', 7],
-    ['5 - 2', 3],
+    ['5 * 2', '10'],
+    ['5 + 2', '7'],
+    ['5 - 2', '3'],
+    ['5 + 6 / 3', '5 + 2'],
   ]) {
     it('should step op application. input=[' + target + ']', () => {
       const p = parser.parse(target + ';;');
-      expect(stepper.step([], p.expr)).to.equal(expected);
+      expect(printer.printExpr(stepper.step([], p.expr))).to.equal(expected);
     })
   }
 
