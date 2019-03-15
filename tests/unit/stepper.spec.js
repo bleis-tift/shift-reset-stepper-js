@@ -19,6 +19,7 @@ describe('stepper.js', () => {
   for (const [target, expected] of [
     ['(fun x -> x) (f ())', '(fun x -> x) ((fun () -> 10) ())'],
     ['(fun x -> x) (fun _ -> f ()) (f ())', '(fun x -> x) (fun _ -> f ()) ((fun () -> 10) ())'],
+    ['(fun x y -> x + y) (f ()) 10', '(fun x y -> x + y) ((fun () -> 10) ()) 10'],
   ]) {
     it('should step arg.', () => {
       const p = parser.parse('let f () = 10;;' + target + ';;');
