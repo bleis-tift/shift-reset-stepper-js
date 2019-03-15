@@ -74,7 +74,8 @@ function apply(defs, f, args, ectx) {
     argTable.set(f.params[i], args[i]);
   }
   const substituted = substitute(argTable, f.body);
-  ectx.current = _ => substituted;
+  const newExpr = ectx.current(substituted);
+  ectx.current = _ => newExpr;
   return ectx;
 }
 
@@ -98,10 +99,17 @@ function expand(defs, f, args, ectx) {
   return ectx;
 }
 
+function isComputed(expr) {
+  return typeof expr === 'number' && Number.isFinite(expr);
+}
+
 function substitute(argTable, expr) {
   const x = argTable.get(expr);
   if (x) {
     return x;
+  }
+  if (isComputed(expr)) {
+    return expr;
   }
   throw new Error('not implemented yet. expr=' + expr + ', argTable=' + mapToStr(argTable));
 }
