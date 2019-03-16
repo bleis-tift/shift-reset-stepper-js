@@ -46,6 +46,8 @@ function stepImpl(defs, expr, ectx) {
         switch (expr.f) {
           case 'reset':
             return stepReset(defs, expr.args[0].body, ectx);
+          case 'shift':
+            return stepShift(defs, expr.args[0], ectx);
           default:
             const next = nextStepArgPos(expr.args);
             if (next === -1) {
@@ -91,6 +93,13 @@ function stepReset(defs, expr, ectx) {
     ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], hole)])));
     return ectx;
   }
+}
+
+function stepShift(defs, expr, ectx) {
+  const v = gensym();
+  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], ectx.current(v))]))]);
+  ectx.current = _ => newExpr;
+  return ectx;
 }
 
 function apply(defs, f, args, ectx) {

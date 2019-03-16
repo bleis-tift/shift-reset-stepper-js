@@ -67,4 +67,23 @@ describe('stepper.js', () => {
     let next = stepper.step(p.defs, p.expr);
     expect(printer.printExpr(next)).to.equal('reset (fun () -> 5 + 8) + 10');
   })
+
+  it('should step simple shift.', () => {
+    const init = 'reset (fun () -> shift (fun k -> k 10));;';
+    const p = parser.parse(init);
+    let next = stepper.step(p.defs, p.expr);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> (fun k -> k 10) (fun v0 -> reset (fun () -> v0)))');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> (fun v0 -> reset (fun () -> v0)) 10)');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> reset (fun () -> 10))');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> 10)');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('10');
+  })
 })
