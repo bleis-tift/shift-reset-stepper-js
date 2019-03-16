@@ -6,11 +6,18 @@ class EvaluationContext {
     this.outer = x => x;
     this.current = x => x;
   }
+  clone() {
+    const cloned = new EvaluationContext();
+    cloned.outer = this.outer;
+    cloned.current = this.current;
+    return cloned;
+  }
 }
 
 export function step(defs, expr) {
   const ectx = stepImpl(defs, expr, new EvaluationContext());
-  return ectx.outer(ectx.current(null));
+  const res = ectx.outer(ectx.current(null));
+  return res;
 }
 
 function isValue(expr) {
@@ -74,9 +81,14 @@ function nextStepArgPos(args) {
 
 function stepReset(defs, expr, ectx) {
   if (isValue(expr)) {
-    ectx.current = _ => expr;
+    const newExpr = ectx.current(expr);
+    ectx.current = _ => newExpr;
     return ectx;
   } else {
+    const oldEctx = ectx.clone();
+    const newEctx = stepImpl(defs, expr, new EvaluationContext());
+    ectx.current = hole => newEctx.outer(newEctx.current(hole));
+    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], hole)])));
     return ectx;
   }
 }

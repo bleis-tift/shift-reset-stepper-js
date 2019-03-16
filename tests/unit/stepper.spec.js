@@ -60,4 +60,11 @@ describe('stepper.js', () => {
     const target = ast.reset(3);
     expect(printer.printExpr(stepper.step([], target))).to.equal('3');
   })
+
+  it('should step nested reset.', () => {
+    const init = 'reset (fun () -> 5 + reset (fun () -> 8)) + 10;;';
+    const p = parser.parse(init);
+    let next = stepper.step(p.defs, p.expr);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> 5 + 8) + 10');
+  })
 })
