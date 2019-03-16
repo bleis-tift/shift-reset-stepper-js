@@ -1,6 +1,11 @@
 import * as ast from './ast-utils.js'
 import * as printer from './printer.js'
 
+let id = 0;
+function gensym() {
+  return "v" + id++;
+}
+
 class EvaluationContext {
   constructor() {
     this.outer = x => x;
@@ -15,6 +20,7 @@ class EvaluationContext {
 }
 
 export function step(defs, expr) {
+  id = 0;
   const ectx = stepImpl(defs, expr, new EvaluationContext());
   const res = ectx.outer(ectx.current(null));
   return res;
@@ -44,26 +50,44 @@ function stepImpl(defs, expr, ectx) {
     switch (expr.type) {
       case 'function-application':
         switch (expr.f) {
-          case 'reset':
-            return stepReset(defs, expr.args[0].body, ectx);
+          case 'reset': {
+            const next = nextStepArgPos(expr.args);
+            if (next === -1 || next === 0) {
+              return stepReset(defs, expr.args[0].body, expr.args.slice(1), ectx);
+            } else {
+              const prev = ectx.current;
+              ectx.current = hole => {
+                const newArgs = expr.args.map(x => x);
+                newArgs[next] = hole;
+                return prev(ast.funApp(expr.f, newArgs));
+              };
+              return stepImpl(defs, expr.args[next], ectx);
+            }
+          }
           case 'shift':
             return stepShift(defs, expr.args[0], ectx);
-          default:
+          default: {
             const next = nextStepArgPos(expr.args);
             if (next === -1) {
               if (isOpOrLambda(expr.f)) {
                 return apply(defs, expr.f, expr.args, ectx);
+              } else if (expr.f.type === 'function-application') {
+                const newEctx = stepImpl(defs, expr.f, ectx.clone());
+                ectx.current = hole => ast.funApp(newEctx.outer(newEctx.current(hole)), expr.args);
+                return ectx;
               } else {
                 return expand(defs, expr.f, expr.args, ectx);
               }
             } else {
+              const prev = ectx.current;
               ectx.current = hole => {
                 const newArgs = expr.args.map(x => x);
                 newArgs[next] = hole;
-                return ast.funApp(expr.f, newArgs);
+                return prev(ast.funApp(expr.f, newArgs));
               };
               return stepImpl(defs, expr.args[next], ectx);
             }
+          }
         }
       case 'lambda-expr':
         ectx.current = _ => expr;
@@ -81,16 +105,25 @@ function nextStepArgPos(args) {
   return -1;
 }
 
-function stepReset(defs, expr, ectx) {
+function stepReset(defs, expr, args, ectx) {
   if (isValue(expr)) {
     const newExpr = ectx.current(expr);
-    ectx.current = _ => newExpr;
-    return ectx;
+    switch (newExpr.type) {
+      case 'lambda-expr':
+        if (args.length !== 0)
+          ectx.current = _ => ast.funApp(newExpr, args);
+        else
+          ectx.current = _ => newExpr;
+        return ectx;
+      default:
+        ectx.current = _ => newExpr;
+        return ectx;
+    }
   } else {
     const oldEctx = ectx.clone();
     const newEctx = stepImpl(defs, expr, new EvaluationContext());
     ectx.current = hole => newEctx.outer(newEctx.current(hole));
-    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], hole)])));
+    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], hole), ...args])));
     return ectx;
   }
 }
@@ -128,7 +161,10 @@ function apply(defs, f, args, ectx) {
       if (f.params.length == 1) {
         const substituted = substitute(f.body, f.params[0], args[0]);
         const newExpr = ectx.current(substituted);
-        ectx.current = _ => newExpr;
+        if (args.length != 1)
+          ectx.current = _ => ast.funApp(newExpr, args.slice(1));
+        else
+          ectx.current = _ => newExpr;
         return ectx;
       } else {
         const [p1, ...pRest] = f.params;
@@ -137,11 +173,6 @@ function apply(defs, f, args, ectx) {
         return apply(defs, newLambda, [a1], ectx);
       }
   }
-}
-
-let id = 0;
-function gensym() {
-  return "v" + id++;
 }
 
 function expand(defs, f, args, ectx) {

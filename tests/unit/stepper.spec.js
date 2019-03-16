@@ -86,4 +86,82 @@ describe('stepper.js', () => {
     next = stepper.step(p.defs, next);
     expect(printer.printExpr(next)).to.equal('10');
   })
+
+  it('should step state monad.', () => {
+    const defGet = 'let get () = shift (fun k -> fun s -> k s s)';
+    const defReturn = 'let return r = fun _ -> r';
+    const defRunState = 'let run_state thunk init = reset (fun () -> return (thunk ())) init';
+    const expr = 'run_state (fun () -> get () + get ()) 3;;';
+
+    const init = [defGet, defReturn, defRunState, expr].join(';;');
+    const p = parser.parse(init);
+    let next = stepper.step(p.defs, p.expr);
+    expect(printer.printExpr(next)).to.equal('(fun thunk init -> reset (fun () -> return (thunk ())) init) (fun () -> get () + get ()) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun init -> reset (fun () -> return ((fun () -> get () + get ()) ())) init) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> return ((fun () -> get () + get ()) ())) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> return (get () + get ())) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> return (get () + (fun () -> shift (fun k -> fun s -> k s s)) ())) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> return (get () + shift (fun k -> fun s -> k s s))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> (fun k -> fun s -> k s s) (fun v0 -> reset (fun () -> return (get () + v0)))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('reset (fun () -> fun s -> (fun v0 -> reset (fun () -> return (get () + v0))) s s) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun s -> (fun v0 -> reset (fun () -> return (get () + v0))) s s) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun v0 -> reset (fun () -> return (get () + v0))) 3 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> return (get () + 3))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> return ((fun () -> shift (fun k -> fun s -> k s s)) () + 3))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> return (shift (fun k -> fun s -> k s s) + 3))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> (fun k -> fun s -> k s s) (fun v0 -> reset (fun () -> return (v0 + 3))))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> fun s -> (fun v0 -> reset (fun () -> return (v0 + 3))) s s)) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun s -> (fun v0 -> reset (fun () -> return (v0 + 3))) s s) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun v0 -> reset (fun () -> return (v0 + 3))) 3 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> return (3 + 3))) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> return 6)) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> (fun r -> fun _ -> r) 6)) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(reset (fun () -> fun _ -> 6)) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('(fun _ -> 6) 3');
+
+    next = stepper.step(p.defs, next);
+    expect(printer.printExpr(next)).to.equal('6');
+  });
 })
