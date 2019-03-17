@@ -123,14 +123,14 @@ function stepReset(defs, expr, args, ectx) {
     const oldEctx = ectx.clone();
     const newEctx = stepImpl(defs, expr, new EvaluationContext());
     ectx.current = hole => newEctx.outer(newEctx.current(hole));
-    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], hole), ...args])));
+    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.reset(hole, args)));
     return ectx;
   }
 }
 
 function stepShift(defs, expr, ectx) {
   const v = gensym();
-  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.funApp('reset', [ast.lambdaExpr([ast.astUnit()], ectx.current(v))]))]);
+  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.reset(ectx.current(v)))]);
   ectx.current = _ => newExpr;
   return ectx;
 }

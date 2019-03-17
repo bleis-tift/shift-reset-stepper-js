@@ -31,8 +31,11 @@ export function funApp(f, args) {
   };
 }
 
-export function reset(body) {
-  return funApp('reset', [lambdaExpr([astUnit()], body)]);
+export function reset(body, args) {
+  if (!args) {
+    args = [];
+  }
+  return funApp('reset', [lambdaExpr([astUnit()], body), ...args]);
 }
 
 export function shift(kName, body) {
