@@ -21,8 +21,8 @@ class EvaluationContext {
 
 export function step(defs, expr) {
   id = 0;
-  const ectx = stepImpl(defs, expr, new EvaluationContext());
-  const res = ectx.outer(ectx.current(null));
+  const ec = stepImpl(defs, expr, new EvaluationContext());
+  const res = ec.outer(ec.current(null));
   return res;
 }
 
@@ -42,10 +42,10 @@ function isOpOrLambda(f) {
   }
 }
 
-function stepImpl(defs, expr, ectx) {
+function stepImpl(defs, expr, ec) {
   if (!expr.type) {
-    ectx.current = _ => expr;
-    return ectx;
+    ec.current = _ => expr;
+    return ec;
   } else {
     switch (expr.type) {
       case 'function-application':
@@ -53,45 +53,45 @@ function stepImpl(defs, expr, ectx) {
           case 'reset': {
             const next = nextStepArgPos(expr.args);
             if (next === -1 || next === 0) {
-              return stepReset(defs, expr.args[0].body, expr.args.slice(1), ectx);
+              return stepReset(defs, expr.args[0].body, expr.args.slice(1), ec);
             } else {
-              const prev = ectx.current;
-              ectx.current = hole => {
+              const prev = ec.current;
+              ec.current = hole => {
                 const newArgs = expr.args.map(x => x);
                 newArgs[next] = hole;
                 return prev(ast.funApp(expr.f, newArgs));
               };
-              return stepImpl(defs, expr.args[next], ectx);
+              return stepImpl(defs, expr.args[next], ec);
             }
           }
           case 'shift':
-            return stepShift(defs, expr.args[0], ectx);
+            return stepShift(defs, expr.args[0], ec);
           default: {
             const next = nextStepArgPos(expr.args);
             if (next === -1) {
               if (isOpOrLambda(expr.f)) {
-                return apply(defs, expr.f, expr.args, ectx);
+                return apply(defs, expr.f, expr.args, ec);
               } else if (expr.f.type === 'function-application') {
-                const newEctx = stepImpl(defs, expr.f, ectx.clone());
-                ectx.current = hole => ast.funApp(newEctx.outer(newEctx.current(hole)), expr.args);
-                return ectx;
+                const newec = stepImpl(defs, expr.f, ec.clone());
+                ec.current = hole => ast.funApp(newec.outer(newec.current(hole)), expr.args);
+                return ec;
               } else {
-                return expand(defs, expr.f, expr.args, ectx);
+                return expand(defs, expr.f, expr.args, ec);
               }
             } else {
-              const prev = ectx.current;
-              ectx.current = hole => {
+              const prev = ec.current;
+              ec.current = hole => {
                 const newArgs = expr.args.map(x => x);
                 newArgs[next] = hole;
                 return prev(ast.funApp(expr.f, newArgs));
               };
-              return stepImpl(defs, expr.args[next], ectx);
+              return stepImpl(defs, expr.args[next], ec);
             }
           }
         }
       case 'lambda-expr':
-        ectx.current = _ => expr;
-        return ectx;
+        ec.current = _ => expr;
+        return ec;
       default:
         throw new Error('not implemented yet.');
     }
@@ -105,77 +105,77 @@ function nextStepArgPos(args) {
   return -1;
 }
 
-function stepReset(defs, expr, args, ectx) {
+function stepReset(defs, expr, args, ec) {
   if (isValue(expr)) {
-    const newExpr = ectx.current(expr);
+    const newExpr = ec.current(expr);
     switch (newExpr.type) {
       case 'lambda-expr':
         if (args.length !== 0)
-          ectx.current = _ => ast.funApp(newExpr, args);
+          ec.current = _ => ast.funApp(newExpr, args);
         else
-          ectx.current = _ => newExpr;
-        return ectx;
+          ec.current = _ => newExpr;
+        return ec;
       default:
-        ectx.current = _ => newExpr;
-        return ectx;
+        ec.current = _ => newExpr;
+        return ec;
     }
   } else {
-    const oldEctx = ectx.clone();
-    const newEctx = stepImpl(defs, expr, new EvaluationContext());
-    ectx.current = hole => newEctx.outer(newEctx.current(hole));
-    ectx.outer = hole => oldEctx.outer(oldEctx.current(ast.reset(hole, args)));
-    return ectx;
+    const oldEc = ec.clone();
+    const newEc = stepImpl(defs, expr, new EvaluationContext());
+    ec.current = hole => newEc.outer(newEc.current(hole));
+    ec.outer = hole => oldEc.outer(oldEc.current(ast.reset(hole, args)));
+    return ec;
   }
 }
 
-function stepShift(defs, expr, ectx) {
+function stepShift(defs, expr, ec) {
   const v = gensym();
-  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.reset(ectx.current(v)))]);
-  ectx.current = _ => newExpr;
-  return ectx;
+  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.reset(ec.current(v)))]);
+  ec.current = _ => newExpr;
+  return ec;
 }
 
-function apply(defs, f, args, ectx) {
+function apply(defs, f, args, ec) {
   switch (f) {
     case '+': {
-      const newExpr = ectx.current(args[0] + args[1]);
-      ectx.current = _ => newExpr;
-      return ectx;
+      const newExpr = ec.current(args[0] + args[1]);
+      ec.current = _ => newExpr;
+      return ec;
     }
     case '-': {
-      const newExpr = ectx.current(args[0] - args[1]);
-      ectx.current = _ => newExpr;
-      return ectx;
+      const newExpr = ec.current(args[0] - args[1]);
+      ec.current = _ => newExpr;
+      return ec;
     }
     case '*': {
-      const newExpr = ectx.current(args[0] * args[1]);
-      ectx.current = _ => newExpr;
-      return ectx;
+      const newExpr = ec.current(args[0] * args[1]);
+      ec.current = _ => newExpr;
+      return ec;
     }
     case '/': {
-      const newExpr = ectx.current(args[0] / args[1]);
-      ectx.current = _ => newExpr;
-      return ectx;
+      const newExpr = ec.current(args[0] / args[1]);
+      ec.current = _ => newExpr;
+      return ec;
     }
     default:
       if (f.params.length == 1) {
         const substituted = substitute(f.body, f.params[0], args[0]);
-        const newExpr = ectx.current(substituted);
+        const newExpr = ec.current(substituted);
         if (args.length != 1)
-          ectx.current = _ => ast.funApp(newExpr, args.slice(1));
+          ec.current = _ => ast.funApp(newExpr, args.slice(1));
         else
-          ectx.current = _ => newExpr;
-        return ectx;
+          ec.current = _ => newExpr;
+        return ec;
       } else {
         const [p1, ...pRest] = f.params;
         const [a1, ...aRest] = args;
         const newLambda = ast.lambdaExpr([p1], ast.funApp(ast.lambdaExpr(pRest, f.body), aRest));
-        return apply(defs, newLambda, [a1], ectx);
+        return apply(defs, newLambda, [a1], ec);
       }
   }
 }
 
-function expand(defs, f, args, ectx) {
+function expand(defs, f, args, ec) {
   const varTable = new Map();
   for (const d of defs) {
     varTable.set(d.ident, d);
@@ -185,9 +185,9 @@ function expand(defs, f, args, ectx) {
   for (let i = 0; i < syms.length; i++) {
     varTable.set(def.params[i], syms[i]);
   }
-  const newExpr = ectx.current(ast.funApp(ast.lambdaExpr(syms, def.body), args));
-  ectx.current = _ => newExpr;
-  return ectx;
+  const newExpr = ec.current(ast.funApp(ast.lambdaExpr(syms, def.body), args));
+  ec.current = _ => newExpr;
+  return ec;
 }
 
 function isComputed(expr) {
