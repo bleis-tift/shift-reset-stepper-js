@@ -17,6 +17,11 @@ class EvaluationContext {
     cloned.current = this.current;
     return cloned;
   }
+
+  setCurrent(newExpr) {
+    this.current = _ => newExpr;
+    return this;
+  }
 }
 
 export function step(defs, expr) {
@@ -111,13 +116,11 @@ function stepReset(defs, expr, args, ec) {
     switch (newExpr.type) {
       case 'lambda-expr':
         if (args.length !== 0)
-          ec.current = _ => ast.funApp(newExpr, args);
+          return ec.setCurrent(ast.funApp(newExpr, args));
         else
-          ec.current = _ => newExpr;
-        return ec;
+          return ec.setCurrent(newExpr);
       default:
-        ec.current = _ => newExpr;
-        return ec;
+        return ec.setCurrent(newExpr);
     }
   } else {
     const oldEc = ec.clone();
@@ -130,42 +133,22 @@ function stepReset(defs, expr, args, ec) {
 
 function stepShift(defs, expr, ec) {
   const v = gensym();
-  const newExpr = ast.funApp(expr, [ast.lambdaExpr([v], ast.reset(ec.current(v)))]);
-  ec.current = _ => newExpr;
-  return ec;
+  return ec.setCurrent(ast.funApp(expr, [ast.lambdaExpr([v], ast.reset(ec.current(v)))]));
 }
 
 function apply(defs, f, args, ec) {
   switch (f) {
-    case '+': {
-      const newExpr = ec.current(args[0] + args[1]);
-      ec.current = _ => newExpr;
-      return ec;
-    }
-    case '-': {
-      const newExpr = ec.current(args[0] - args[1]);
-      ec.current = _ => newExpr;
-      return ec;
-    }
-    case '*': {
-      const newExpr = ec.current(args[0] * args[1]);
-      ec.current = _ => newExpr;
-      return ec;
-    }
-    case '/': {
-      const newExpr = ec.current(args[0] / args[1]);
-      ec.current = _ => newExpr;
-      return ec;
-    }
+    case '+': return ec.setCurrent(ec.current(args[0] + args[1]));
+    case '-': return ec.setCurrent(ec.current(args[0] - args[1]));
+    case '*': return ec.setCurrent(ec.current(args[0] * args[1]));
+    case '/': return ec.setCurrent(ec.current(args[0] / args[1]));
     default:
       if (f.params.length == 1) {
         const substituted = substitute(f.body, f.params[0], args[0]);
-        const newExpr = ec.current(substituted);
         if (args.length != 1)
-          ec.current = _ => ast.funApp(newExpr, args.slice(1));
+          return ec.setCurrent(ast.funApp(ec.current(substituted), args.slice(1)));
         else
-          ec.current = _ => newExpr;
-        return ec;
+          return ec.setCurrent(ec.current(substituted));
       } else {
         const [p1, ...pRest] = f.params;
         const [a1, ...aRest] = args;
@@ -185,9 +168,7 @@ function expand(defs, f, args, ec) {
   for (let i = 0; i < syms.length; i++) {
     varTable.set(def.params[i], syms[i]);
   }
-  const newExpr = ec.current(ast.funApp(ast.lambdaExpr(syms, def.body), args));
-  ec.current = _ => newExpr;
-  return ec;
+  return ec.setCurrent(ec.current(ast.funApp(ast.lambdaExpr(syms, def.body), args)));
 }
 
 function isComputed(expr) {
