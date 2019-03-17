@@ -6,11 +6,11 @@
     <p>{{error}}</p>
     <pre>{{code}}</pre>
     <ol>
-      <li v-for='(step, index) in steps' :key='index'>
+      <li v-for='(step, index) in steps' :key='index' class='ocha'>
         {{printExpr(step)}}
       </li>
     </ol>
-    <input type='button' value='reduce' v-on:click="reduce"></input>
+    <input type='button' value='reduce' v-on:click="reduce" v-if='hasParsed'></input>
   </div>
 </template>
 
@@ -35,6 +35,11 @@ export default {
       steps: [],
       parsed: '',
     };
+  },
+  computed: {
+    hasParsed() {
+      return this.code !== '';
+    }
   },
   methods: {
     parse() {
@@ -79,5 +84,8 @@ export default {
 textarea {
   min-width: 500px;
   min-height: 200px;
+}
+.ocha {
+  font-family: monospace;
 }
 </style>
